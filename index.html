@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satoramy Ledger - EXP (ETH/EVM & BTC/RPC)</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #111827;
+            --border-color: #1f2937;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: monospace, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 10px;
+            line-height: 1.4;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Hidden Utility */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Panel Box Styling */
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+
+        h2, h3 {
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+            font-size: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        /* Inputs & Buttons */
+        input, select {
+            background: #030712;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        .btn-green { background: var(--accent-green); }
+        .btn-red { background: var(--accent-red); }
+
+        /* Flex Layouts */
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Settings Slideover / Modal */
+        #settings-panel {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #settings-panel.open {
+            right: 0;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .chart-box {
+            background: #030712;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 0.85rem;
+            min-height: 120px;
+        }
+
+        .ascii-art {
+            color: var(--accent-green);
+            white-space: pre;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .status-online { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .status-offline { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- A x 1 & A x 0: Header & Login Interface -->
+    <div id="auth-container" class="panel">
+        <h2>A x 0 / A x 1: SYSTEM LOGIN & STATUS</h2>
+        <div id="login-view">
+            <p style="color: var(--text-muted); margin-bottom: 10px;">SYSTEM-ZUSTAND-STATUS: [ INITIALIZING / READY TO CONNECT ]</p>
+            <input type="text" id="username-input" placeholder="Benutzername (z.B. Mustermann123)">
+            <input type="password" id="password-input" placeholder="Passwort">
+            <div class="flex-row">
+                <button onclick="handleLogin()" class="btn-green">ANMELDEN & SYSTEM STARTEN</button>
+            </div>
+        </div>
+
+        <div id="user-header-view" class="hidden">
+            <div class="flex-between">
+                <div>
+                    <strong>Benutzer:</strong> <span id="display-user">Mustermann123</span> | 
+                    <strong>Status:</strong> <span id="system-status-badge" class="status-badge status-online">ONLINE / AKTIV / HOT</span>
+                </div>
+                <button onclick="handleLogout()" class="btn-red" id="logout-btn">LOGOUT</button>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">
+                SystemID Hash: <span id="sys-id-hash">b17be...ec9</span> | 
+                Nutzer ID: <span id="user-id-eth">0x0...ETH</span> | 
+                Wallet ID Hash: <span id="wallet-id-hash">a697e...7481</span>
+            </div>
+            <div style="margin-top: 10px;" class="flex-row">
+                <button onclick="toggleSettings()" class="btn-blue">SETTINGS (0x1)</button>
+                <button onclick="switchExplorer('global')">Globaler Explorer (BX4)</button>
+                <button onclick="switchExplorer('local')">Lokaler Explorer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP DASHBOARD (Nach Login Sichtbar: A x 4, B x 1, B x 2, B x 3, B x 4) -->
+    <div id="dashboard-app" class="hidden">
+
+        <!-- A x 4: Main Wallet Dashboard -->
+        <div class="panel">
+            <h2>A x 4: MAIN WALLET DASHBOARD</h2>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <p style="color: var(--text-muted); font-size: 0.85rem;">[ Gesamt-Portfolio ]</p>
+                <h1 id="total-portfolio-fiat" style="font-size: 2rem; color: var(--accent-green);">0.00 € / Fiat</h1>
+                <div class="flex-row" style="justify-content: center; margin-top: 10px;">
+                    <button onclick="alert('Send-Funktion aktiv')">[SEND]</button>
+                    <button onclick="alert('Swap-Funktion aktiv')" class="btn-blue">[SWAP]</button>
+                </div>
+            </div>
+
+            <!-- B x 1: Walletebene (3x1) -->
+            <div class="panel" style="background: #030712;">
+                <h3>WALLETEBENE (3x1)</h3>
+                <div style="margin-bottom: 10px;">
+                     Allgemeine Balances (B x 1 x A): <strong id="bal-general">0.00</strong>
+                </div>
+                <hr style="border-color: var(--border-color); margin: 10px 0;">
+                <div>
+                    <p style="margin-bottom: 5px;">Eigene Balances Portfolio (B x 1 x D) ([BUY] & [SELL]):</p>
+                    <div class="flex-between" style="background: var(--panel-bg); padding: 8px; margin-bottom: 5px; border-radius: 4px;">
+                        <span>[ EXP Balance: <span id="exp-bal">0.00</span> ]</span>
+                        <button onclick="openChart('EXP')">Tradingchart / Candlestick</button>
+                    </div>
+                    <div class="flex-between" style="background: var(--panel-bg); padding: 8px; margin-bottom: 5px; border-radius: 4px;">
+                        <span>[ BTC Balance: <span id="btc-bal">0.00</span> ]</span>
+                        <button onclick="openChart('BTC')">Bx2 (Rot & Grün)</button>
+                    </div>
+                    <div class="flex-between" style="background: var(--panel-bg); padding: 8px; border-radius: 4px;">
+                        <span>[ ETH Balance: <span id="eth-bal">0.00</span> ]</span>
+                        <button onclick="openChart('ETH')">3x1 & 1x1 Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- B x 3: Mining & Validierung Control Block -->
+        <div class="panel">
+            <h2>B x 3: FRONTEND CONTROLLER INTERFACE -- MULTI-CHAIN MINING & VALIDATION</h2>
+            <div style="margin-bottom: 15px;">
+                <p><strong>Config: Node Runtime</strong></p>
+                <div class="flex-row" style="font-size: 0.9rem;">
+                    <span>Network: <label><input type="radio" name="net" checked> NATIVE Layer-1</label> <label><input type="radio" name="net"> Testnet</label></span>
+                    <span>ASSETS Node: <label><input type="radio" name="asset" checked> Local Devnet</label> <label><input type="radio" name="asset"> Stage</label></span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div style="background: #030712; padding: 10px; border-radius: 4px;">
+                    <p><strong>CONTROLLER BLOCK C: PoW-MINING</strong></p>
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Target Diff: [ 92.35 T ]</label>
+                    <div class="flex-row" style="margin-top: 5px;">
+                        <button onclick="toggleMining()" id="miner-toggle-btn" class="btn-green">START ALL MINERS</button>
+                        <button onclick="injectPoW()" class="btn-blue">INJECT POW</button>
+                    </div>
+                </div>
+                <div style="background: #030712; padding: 10px; border-radius: 4px;">
+                    <p><strong>CONTROLLER BLOCK D: EXECUTION & GAS</strong></p>
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Gas/Weight: [ 30,000,000 Gas ]</label>
+                    <div class="flex-row" style="margin-top: 5px;">
+                        <button onclick="pushBundle()">PUSH BUNDLE</button>
+                        <button onclick="broadcastTx()" class="btn-green">BROADCAST</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controller Block A & B Roots -->
+            <div style="background: #030712; padding: 10px; border-radius: 4px; font-size: 0.85rem;">
+                <p><strong>CONTROLLER BLOCK A & B: TIMELINE & CRYPTOGRAPHIC ROOTS</strong></p>
+                <div class="flex-between" style="margin-top: 5px;">
+                    <span>Ledger-State: <span style="color: var(--accent-green);">Valid</span></span>
+                    <button onclick="alert('Re-scanning Ledger...')">RE-SCAN</button>
+                    <span>Tx Merkle Tree: <span style="color: var(--accent-green);">100% OK</span></span>
+                    <button onclick="alert('Checking Integrity...')">INTEGRITY</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- B x 4 & C X 0: Explorer & Diagramme (B x 2) -->
+        <div class="panel">
+            <h2>B x 4 / B x 2 / C x 0: DIAGRAMME & STATUS EXPLORER</h2>
+            <div class="charts-grid">
+                <div class="chart-box">
+                    <p><strong>DIAGRAMM 1: Netzwerk-Performance</strong></p>
+                    <div class="ascii-art">
+[TH/s] ^      /--\ (NATIVE)
+      |  /\ /    \ (ASSETS)
+      +-------------------> [Zeit]</div>
+                </div>
+                <div class="chart-box">
+                    <p><strong>DIAGRAMM 2: Krypto-Effizienz</strong></p>
+                    <div class="ascii-art">
+PoW Nonce: 100% |███████████|
+PoS Slots: Ep.5 [■][■][■][░][■]</div>
+                </div>
+                <div class="chart-box">
+                    <p><strong>DIAGRAMM 3: Baumstruktur-Latenz</strong></p>
+                    <div class="ascii-art">
+[Tx] ^   .   •   .   (Mempool)
+     +-------------------> [Menge]</div>
+                </div>
+                <div class="chart-box">
+                    <p><strong>DIAGRAMM 4: Node-Verkettung</strong></p>
+                    <div class="ascii-art">
+[ms] ^     /\  (RPC-Antwort)
+     +-------------------> [Zeit2]</div>
+                </div>
+                <div class="chart-box">
+                    <p><strong>DIAGRAMM 5: Hardware & Ressourcen</strong></p>
+                    <div class="ascii-art">
+[%]  ^   _______
+     |  /       \___ (CPU/ASIC)
+     +-------------------> [Zeit]</div>
+                </div>
+                <div class="chart-box">
+                    <p><strong>DIAGRAMM 6: Finanzieller Ertrag</strong></p>
+                    <div class="ascii-art">
+[NAT] ^        /--- (ASSETS)
+      +-------------------> [Blöcke]</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- A x 3: SETTINGS SIDEVIEW PANEL (0x1) -->
+<div id="settings-panel">
+    <div class="flex-between">
+        <h3>SETTINGS SIDEVIEW PANEL (0x1)</h3>
+        <button onclick="toggleSettings()" class="btn-red">Schließen</button>
+    </div>
+    <hr style="border-color: var(--border-color); margin: 10px 0;">
+
+    <p style="font-size: 0.85rem; color: var(--accent-blue); margin-bottom: 5px;">[ LOSE / MANUELLE EINSTELLUNGEN ]</p>
+    <label style="font-size: 0.8rem;">Username:</label>
+    <input type="text" id="setting-username" value="Mustermann123">
+    
+    <label style="font-size: 0.8rem;">Password:</label>
+    <input type="password" id="setting-password" value="secretpassword">
+
+    <p style="font-size: 0.85rem; color: var(--accent-green); margin-top: 15px; margin-bottom: 5px;">[ FESTGESTELLTE EINSTELLUNGEN ]</p>
+    <div style="font-size: 0.8rem; background: #030712; padding: 8px; border-radius: 4px; margin-bottom: 10px;">
+        <p>EVM/ETH Phrasen: [ 12/24 Words ] ──► (3x Adressen)</p>
+        <p>RPC/BTC Phrasen: [ 12/24 Words ] ──► (3x Adressen)</p>
+    </div>
+
+    <p style="font-size: 0.85rem; color: var(--accent-blue); margin-bottom: 5px;">[ WALLET VERKNÜPFEN INTERFACE ]</p>
+    <input type="text" placeholder="Adresse hier einfügen (System/Fremd)...">
+    <button onclick="alert('Wallet erfolgreich verknüpft und verschlüsselt.')" style="width: 100%;">WALLET VERKNÜPFEN</button>
+
+    <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-color); pt: 10px;">
+        <p>SystemID Hash: b17be...ec9</p>
+        <p>Nutzer ID: 0x0...ETH</p>
+        <p>Wallet ID Hash: a697e...7481</p>
+    </div>
+</div>
+
+<script>
+    // State Logic for Mobile GitHub Pages Execution
+    function handleLogin() {
+        const user = document.getElementById('username-input').value || "Mustermann123";
+        document.getElementById('display-user').innerText = user;
+        document.getElementById('setting-username').value = user;
+
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('user-header-view').classList.remove('hidden');
+        document.getElementById('dashboard-app').classList.remove('hidden');
+    }
+
+    function handleLogout() {
+        document.getElementById('login-view').classList.remove('hidden');
+        document.getElementById('user-header-view').classList.add('hidden');
+        document.getElementById('dashboard-app').classList.add('hidden');
+        document.getElementById('settings-panel').classList.remove('open');
+    }
+
+    function toggleSettings() {
+        const panel = document.getElementById('settings-panel');
+        panel.classList.toggle('open');
+    }
+
+    function switchExplorer(type) {
+        if(type === 'global') {
+            alert('Gewechselt zum Globalen Explorer (BX4)');
+        } else {
+            alert('Gewechselt zum Lokalen Explorer');
+        }
+    }
+
+    function toggleMining() {
+        const btn = document.getElementById('miner-toggle-btn');
+        if(btn.innerText.includes('START')) {
+            btn.innerText = 'STOP ALL MINERS';
+            btn.className = 'btn-red';
+            alert('Autonomer Mining-Loop und Share-Suche gestartet.');
+        } else {
+            btn.innerText = 'START ALL MINERS';
+            btn.className = 'btn-green';
+            alert('Mining gestoppt.');
+        }
+    }
+
+    function injectPoW() {
+        alert('Nonce injiziert. System stoppt autonom nach Blocklösung.');
+    }
+
+    function pushBundle() {
+        alert('Bundle erfolgreich an den Mempool übergeben.');
+    }
+
+    function broadcastTx() {
+        alert('Raw-Transaction erfolgreich via EVM/RPC Broadcast eingespeist.');
+    }
+
+    function openChart(coin) {
+        alert('Öffne Detailansicht und Trading-Metriken für: ' + coin);
+    }
+</script>
+
+</body>
+</html>
